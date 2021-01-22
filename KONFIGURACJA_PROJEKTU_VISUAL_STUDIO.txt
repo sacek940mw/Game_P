@@ -1,0 +1,12 @@
+1. Instalacja API Vulkan oraz dodanie podstawowych dla projektu bibiotek:
+	https://vulkan-tutorial.com/Development_environment
+
+2. Dodanie biblioteki tinyobjloader:
+	https://vulkan-tutorial.com/Loading_models
+
+3. Dodanie biblioteki FreeType:
+	https://medium.com/@jackklpan/using-freetype-in-visual-studio-3ac321ca4cb9
+		(nieprawidłowe ścieżki, wersja 2.10.4)
+		1) Właściwości konfiguracji -> C/C++ -> Ogólne -> Dodatkowe katalogi plików nagłówkowych: ...\ft2104\freetype-2.10.4\include
+		2) Właściwości konfiguracji -> Konsolidator -> Ogólne -> Dodatkowe katalogi biblioteki: ...\ft2104\freetype-2.10.4\objs\x64\Debug
+		3) Właściwości konfiguracji -> Konsolidator -> Dane wejściowe -> Dodatkowe zależności: freetype.lib
