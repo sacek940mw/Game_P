@@ -7,13 +7,14 @@ void Renderer::mainLoop() {
 
     eng.getPlayer()->setCordChanged(true);
     eng.run(0);
-    manageObjects();
+    manageObjects();    
     recreateBuffers();
-
-    while (!(glfwWindowShouldClose(window) && modelsAdding == false)) {
+    bool help = true;
+    
+    while ( !((glfwWindowShouldClose(window) || eng.getShouldExit() ) && eng.getModelsAdding() == false) ) {
         
         glfwPollEvents();        
-
+        //std::cout << "eng.getTrianglesDatas().size(): " << eng.getTrianglesDatas().size() <<std::endl;
         if (deletionPrepare == true) {
             if (doDeletion == true) {
                 std::thread delMD(&Renderer::deleteModelsData, this);
@@ -22,26 +23,18 @@ void Renderer::mainLoop() {
             else {
                 doDeletion = true;
             }
-        }       
+        }
 
         drawFrame(usedCommandPool);
-
-        /*
-        std::thread tr1(&Api::runEngine, this, time);
-        std::thread tr2(&Api::checkModelsToAdd, this, eng.getModels(), eng.getPlayer()->getPlPos().xx, eng.getPlayer()->getPlPos().yy, eng.getPlayer()->getPlPos().zz);
-        std::thread tr3(&Api::manageObjects, this);
-        tr1.join();
-        tr2.join();
-        tr3.join();
-       */
-        
-        runEngine(time);
-        checkModelsToAdd(eng.getModels(), eng.getPlayer()->getPlPos().xx, eng.getPlayer()->getPlPos().yy, eng.getPlayer()->getPlPos().zz);
+        deleteWords();
+        runEngine(time);       
+        addWords();
         manageObjects();
 
-        if (toRecreateBufers == true) {
+        if (toRecreateBufers == true || eng.getToRecreateBuffers() == true) {
             recreateBuffers();
             toRecreateBufers = false;
+            eng.setToRecreateBuffers(false);
         }       
 
         currentTime = std::chrono::high_resolution_clock::now();
@@ -65,11 +58,11 @@ void Renderer::runEngine(float time) {
 }
 
 void Renderer::checkModelsToAdd(std::vector<ModelN> models, int32_t xx, int32_t yy, int32_t zz) {
-    eng.checkModelsToAdd(models, xx, yy, zz);
+    eng.checkModelsToAdd(xx, yy, zz);
 }
 
 void Renderer::manageObjects() {
-    if (modelsAdding == false) {
+    if (eng.getModelsAdding() == false) {
         //delete:
         if (eng.getModelsP()->size() > 1 && deletionPrepare == false) {
             if (eng.modelsTD.size() > 0) {
@@ -111,7 +104,7 @@ void Renderer::manageObjects() {
         else {
             int32_t j = eng.getMultiModelManagerP()->getModelsToAddSize();
              if (j > 0) {
-                modelsAdding = true;
+                eng.setModelsAdding(true);
                 std::thread tr1(&Renderer::addModels, this);
                 tr1.detach();
              }
@@ -130,11 +123,11 @@ void Renderer::deleteModelsData() {
         }
         for (ModelN j : eng.getModelsD()) {
             vkDestroyDescriptorPool(device, j.descriptorPool, nullptr);
-            vkDestroyImageView(device, j.textureImageView, nullptr);
-            vkDestroyImage(device, j.textureImage, nullptr);
-            vkFreeMemory(device, j.textureImageMemory, nullptr);
-            vkDestroyBuffer(device, j.vertexBuffer, nullptr);
-            vkFreeMemory(device, j.vertexBufferMemory, nullptr);
+            //vkDestroyImageView(device, j.textures->textureImageView, nullptr);
+            //vkDestroyImage(device, j.texture->textureImage, nullptr);
+            //vkFreeMemory(device, j.texture->textureImageMemory, nullptr);
+            //vkDestroyBuffer(device, j.vertexBuffer, nullptr);
+            //vkFreeMemory(device, j.vertexBufferMemory, nullptr);
         }
         eng.getModelsDP()->clear();
     }

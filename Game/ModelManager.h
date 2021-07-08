@@ -3,6 +3,7 @@
 #include <queue>
 #include <cstring>
 #include <iostream>
+#include <mutex>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -21,6 +22,7 @@ struct ModelInfo {
     int32_t xx = 0, yy = 0, zz = 0;
     float xR = 0.0f, yR = 0.0f, zR = 0.0f;
     uint32_t id = 0;
+    float scale = 1.0f;
 };
 
 struct UniformBufferObject {
@@ -29,16 +31,28 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
-struct ModelN {
+struct Texture {
+    int32_t usedCount = 0;
+    std::string texturePath = "";
     VkImage textureImage = VK_NULL_HANDLE;
     VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
     VkImageView textureImageView = VK_NULL_HANDLE;
+};
 
+struct TrianglesData {
+    int32_t usedCount = 0;
+    std::string modelPath = "";
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
     std::vector<uint32_t> indices;
     uint32_t indicesOffset = 0;
     uint32_t indicesSize = 0;
+};
+
+struct ModelN {
+    int32_t texture = 0;
+    int32_t trianglesData = 0;
+    
     std::vector<VkBuffer> uniformBuffers = std::vector<VkBuffer>(VK_NULL_HANDLE);
     std::vector<VkDeviceMemory> uniformBuffersMemory = std::vector<VkDeviceMemory>(VK_NULL_HANDLE);
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
@@ -48,6 +62,7 @@ struct ModelN {
     glm::vec3 mPos = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::mat4 mRot = glm::mat4(1.0f);
     uint32_t id = 0;
+    float scale = 1.0f;
 };
 
 class ModelManager
@@ -62,6 +77,5 @@ public:
 
     void translateModel(glm::vec3* mPos, float x, float y, float z);
     void translateModel(glm::vec3* mPos, glm::vec3 vec);
-
 };
 

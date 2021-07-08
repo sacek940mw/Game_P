@@ -18,6 +18,11 @@ struct moveKeysPressed {
 	bool q = false, e = false;
 };
 
+struct arrowsPressed {
+	bool up = false, down = false, left = false, right = false;
+	bool enter = false;
+};
+
 struct playerPos {
 	glm::vec3 posVec = glm::vec3(0.0f, 0.0f, 0.0f);
 	int32_t xx = 0 , yy = 0, zz = 0;

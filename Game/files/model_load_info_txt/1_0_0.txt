@@ -1,2 +1,2 @@
-1010;models/grass.obj;textures/grass01.png;0.0f;0.0;0.0;90.0;0.0;0.0;
-1011;models/viking_room.obj;textures/viking_room.png;-9.0f;0.0;0.0;0.0;0.0;0.0;
+1001;models/grass.obj;textures/grass01.png;0.0f;0.0;0.0;90.0;0.0;0.0;1.0;
+1002;models/viking_room.obj;textures/viking_room.png;-9.0f;0.0;0.0;0.0;0.0;0.0;2.0;

@@ -4,6 +4,8 @@ void Renderer::updateUniformBuffer(uint32_t currentImage, ModelN* n) {
     UniformBufferObject ubo{};
 
     ubo.model = n->mRot;
+    if (n->scale != 1.0f)
+        ubo.model = glm::scale(ubo.model, glm::vec3(n->scale));
     ubo.view = glm::lookAt(eng.getPlayer()->getPlCam()->getCameraFast() + n->mPos, n->mPos, glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(89.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 60.0f);
     ubo.proj[1][1] *= -1;
@@ -65,15 +67,20 @@ void Renderer::recreateBuffers() {
 
 void Renderer::createIndexBuffer() {
     std::vector<uint32_t> indices;
-
+    /*
     ModelN* n = eng.getPlayer()->getModelN();
     n->indicesOffset = indices.size();
     indices.insert(indices.end(), n->indices.begin(), n->indices.end());
 
     for (auto& n : eng.getModels()) {
-        //n = &eng.getModelsP()->at(i);
         n.indicesOffset = indices.size();
         indices.insert(indices.end(), n.indices.begin(), n.indices.end());
+    }
+    */
+    for (int32_t i = 0; i < eng.getTrianglesDatas().size(); i++) {
+        TrianglesData* td = &eng.getTrianglesDatasP()->at(i);
+        td->indicesOffset = indices.size();
+        indices.insert(indices.end(), td->indices.begin(), td->indices.end());
     }
 
     VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
@@ -155,12 +162,12 @@ void Renderer::endSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPoo
 
     //buffsBuffers.push_back(&commandBuffer);
 
-    mtx.lock();
+    mtxSh.lock();
     //vkQueueWaitIdle(graphicsQueue);
     vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(graphicsQueue);
     vkFreeCommandBuffers(device, whichPool, 1, &commandBuffer);
-    mtx.unlock();
+    mtxSh.unlock();
 }
 
 void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkCommandPool whichPool) {
@@ -240,28 +247,27 @@ void Renderer::createCommandBuffers(int8_t whichPool) {
             
             vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
             for (ModelN j : eng.getModels()) {                
-                    vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &j.vertexBuffer, offsets);
-                    vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &j.descriptorSets[i], 0, nullptr);
-                    vkCmdDrawIndexed(commandBuffers[i], j.indicesSize, 1, j.indicesOffset, 0, 0);                               
+                vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &eng.getTrianglesDatasP()->at(j.trianglesData).vertexBuffer, offsets);
+                vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &j.descriptorSets[i], 0, nullptr);
+                vkCmdDrawIndexed(commandBuffers[i], eng.getTrianglesDatasP()->at(j.trianglesData).indicesSize, 1, eng.getTrianglesDatasP()->at(j.trianglesData).indicesOffset, 0, 0);
             }
 
             if (eng.getDrawPlayer() == true) {
-                vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &eng.getPlayer()->getModelN()->vertexBuffer, offsets);
+                vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &eng.getTrianglesDatasP()->at(eng.getPlayer()->getModelN()->trianglesData).vertexBuffer, offsets);
                 vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &eng.getPlayer()->getModelN()->descriptorSets[i], 0, nullptr);
-                vkCmdDrawIndexed(commandBuffers[i], eng.getPlayer()->getModelN()->indicesSize, 1, eng.getPlayer()->getModelN()->indicesOffset, 0, 0);
+                vkCmdDrawIndexed(commandBuffers[i], eng.getTrianglesDatasP()->at(eng.getPlayer()->getModelN()->trianglesData).indicesSize, 1, eng.getTrianglesDatasP()->at(eng.getPlayer()->getModelN()->trianglesData).indicesOffset, 0, 0);
             }
 
             vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textGraphicsPipeline);
-
-            //vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &eng.getTextClass()->getCharactersP()->at(66).vertexBuffer, offsets);
-            //vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textPipelineLayout, 0, 1, &eng.getTextClass()->getCharactersP()->at(66).descriptorSets[i], 0, nullptr);
-            //vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(eng.getTextClass()->getCharactersP()->at(66).vertices.size()), 1, 0, 0);
-
             for (Word& w : eng.getTextClass()->getWords()) {
-                for (Character& c : w.characters) {
-                    vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &c.vertexBuffer, offsets);
-                    vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textPipelineLayout, 0, 1, &c.descriptorSets[i], 0, nullptr);
-                    vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(c.vertices.size()), 1, 0, 0);
+                if (w.added == true) {
+                    for (Character& c : w.characters) {
+                        if (c.txtData.size > 0) {
+                            vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &c.vertexBuffer, offsets);
+                            vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textPipelineLayout, 0, 1, &c.descriptorSets[i], 0, nullptr);
+                            vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(c.vertices.size()), 1, 0, 0);
+                        }
+                    }
                 }
             }
 
@@ -306,29 +312,28 @@ void Renderer::createCommandBuffers(int8_t whichPool) {
             
             vkCmdBindIndexBuffer(commandBuffers1[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
             for (ModelN j : eng.getModels()) {                
-                    vkCmdBindVertexBuffers(commandBuffers1[i], 0, 1, &j.vertexBuffer, offsets);
-                    vkCmdBindDescriptorSets(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &j.descriptorSets[i], 0, nullptr);
-                    vkCmdDrawIndexed(commandBuffers1[i], j.indicesSize, 1, j.indicesOffset, 0, 0);                             
+                vkCmdBindVertexBuffers(commandBuffers1[i], 0, 1, &eng.getTrianglesDatasP()->at(j.trianglesData).vertexBuffer, offsets);
+                vkCmdBindDescriptorSets(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &j.descriptorSets[i], 0, nullptr);
+                vkCmdDrawIndexed(commandBuffers1[i], eng.getTrianglesDatasP()->at(j.trianglesData).indicesSize, 1, eng.getTrianglesDatasP()->at(j.trianglesData).indicesOffset, 0, 0);
             }
 
             if (eng.getDrawPlayer() == true) {
-                vkCmdBindVertexBuffers(commandBuffers1[i], 0, 1, &eng.getPlayer()->getModelN()->vertexBuffer, offsets);
+                vkCmdBindVertexBuffers(commandBuffers1[i], 0, 1, &eng.getTrianglesDatasP()->at(eng.getPlayer()->getModelN()->trianglesData).vertexBuffer, offsets);
                 vkCmdBindDescriptorSets(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &eng.getPlayer()->getModelN()->descriptorSets[i], 0, nullptr);
-                vkCmdDrawIndexed(commandBuffers1[i], eng.getPlayer()->getModelN()->indicesSize, 1, eng.getPlayer()->getModelN()->indicesOffset, 0, 0);
+                vkCmdDrawIndexed(commandBuffers1[i], eng.getTrianglesDatasP()->at(eng.getPlayer()->getModelN()->trianglesData).indicesSize, 1, eng.getTrianglesDatasP()->at(eng.getPlayer()->getModelN()->trianglesData).indicesOffset, 0, 0);
             }
 
-            vkCmdBindPipeline(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textGraphicsPipeline);
-
-            //vkCmdBindVertexBuffers(commandBuffers1[i], 0, 1, &eng.getTextClass()->getCharactersP()->at(66).vertexBuffer, offsets);
-            //vkCmdBindDescriptorSets(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textPipelineLayout, 0, 1, &eng.getTextClass()->getCharactersP()->at(66).descriptorSets[i], 0, nullptr);
-            //vkCmdDraw(commandBuffers1[i], static_cast<uint32_t>(eng.getTextClass()->getCharactersP()->at(66).vertices.size()), 1, 0, 0);
-
+            vkCmdBindPipeline(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textGraphicsPipeline);            
             for (Word& w : eng.getTextClass()->getWords()) {
-                for (Character& c : w.characters) {
-                    vkCmdBindVertexBuffers(commandBuffers1[i], 0, 1, &c.vertexBuffer, offsets);
-                    vkCmdBindDescriptorSets(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textPipelineLayout, 0, 1, &c.descriptorSets[i], 0, nullptr);
-                    vkCmdDraw(commandBuffers1[i], static_cast<uint32_t>(c.vertices.size()), 1, 0, 0);
-                }
+                if (w.added == true) {
+                    for (Character& c : w.characters) {
+                        if (c.txtData.size > 0) {
+                            vkCmdBindVertexBuffers(commandBuffers1[i], 0, 1, &c.vertexBuffer, offsets);
+                            vkCmdBindDescriptorSets(commandBuffers1[i], VK_PIPELINE_BIND_POINT_GRAPHICS, textPipelineLayout, 0, 1, &c.descriptorSets[i], 0, nullptr);
+                            vkCmdDraw(commandBuffers1[i], static_cast<uint32_t>(c.vertices.size()), 1, 0, 0);
+                        }
+                    }
+                }                
             }
 
             vkCmdEndRenderPass(commandBuffers1[i]);

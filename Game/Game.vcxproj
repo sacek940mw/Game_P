@@ -163,6 +163,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ItemManager.cpp" />
+    <ClCompile Include="MainMenu.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Renderer_BuffersManager.cpp" />
     <ClCompile Include="Renderer_MainLoop.cpp" />
@@ -177,6 +179,7 @@
     <ClCompile Include="Renderer_TextureLoader.cpp" />
     <ClCompile Include="Renderer_VulkanIniter.cpp" />
     <ClCompile Include="TextClass.cpp" />
+    <ClCompile Include="WordGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
@@ -186,6 +189,8 @@
     <None Include="shaders\textShader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ItemManager.h" />
+    <ClInclude Include="MainMenu.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Renderer_Structs.h" />
     <ClInclude Include="Camera.h" />
@@ -195,6 +200,7 @@
     <ClInclude Include="MultiModelManager.h" />
     <ClInclude Include="MyPlayer.h" />
     <ClInclude Include="TextClass.h" />
+    <ClInclude Include="WordGenerator.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

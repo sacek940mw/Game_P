@@ -46,9 +46,10 @@ public:
 private:    
     std::mutex mtx;
     std::mutex mtx1;
+    std::mutex mtxSh;
     bool joined = false;
     bool toJoin = false;
-    bool modelsAdding = false;
+    //bool modelsAdding = false;
     bool toRecreateBufers = false;
     bool deletionPrepare = false;
     bool doDeletion = false;    
@@ -57,7 +58,7 @@ private:
 
     float pomoc = 0.0f;
     bool pom = true;
-    float frameLimit = 0;
+    float frameLimit = 120;
 
     Camera cam;
     Engine eng;
@@ -164,7 +165,7 @@ private:
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkCommandPool whichPool);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, VkCommandPool whichPool);    
     void loadModel(std::string modelPath, ModelN* n);
-    void createVertexBuffer(std::vector<Vertex>& vertices, VkBuffer& vertexBuffer, VkDeviceMemory& vertexBufferMemory);
+    void createVertexBuffer(std::vector<Vertex>& verti, VkBuffer& vertexBuffer, VkDeviceMemory& vertexBufferMemory);
     void createIndexBuffer();
     void createUniformBuffers(std::vector<VkBuffer>& uniformBuffers, std::vector<VkDeviceMemory>& uniformBuffersMemory);
     void createDescriptorPool(VkDescriptorPool& descriptorPool);
@@ -203,8 +204,10 @@ private:
     void checkModelsToAdd(std::vector<ModelN> models, int32_t xx, int32_t yy, int32_t zz);
     void manageObjects();
 
+    void deleteWords();
+    void addWords();
     void addWord(Word* w);
     void addLetters();
-    void addLetter(Character* c, float fontSize);
+    void addLetter(Character* c, float fontSize, glm::vec4 color);
     void createTextureImageLetter(Character* charact);
 };

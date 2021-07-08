@@ -39,17 +39,18 @@ void Renderer::initVulkan() {
     createTextureSampler();
 }
 
-void Renderer::prepare() {
-    eng.getTextClass()->loadCharacters();
-    eng.getTextClass()->addWord("TEST", 400, 1.0f, 0.0f, 'L');
-    addWord(&eng.getTextClass()->getWordsP()->back());
-    addLetters();
-
+void Renderer::prepare() {    
+    //eng.getTextClass()->addWord("TE ST", 400, 5.0f, 5.0f, 'L', glm::vec4(1.0f, 1.0f, 1.0f, 1.0f) );
+    //addWord(&eng.getTextClass()->getWordsP()->back());
+    addWords();
+    /*
     ModelInfo miTmp;
     miTmp.z = 2000;
     miTmp.modelPath = "models/qube.obj";
     miTmp.texturePath = "textures/texture.jpg";
+    //addModelI(miTmp);
     eng.getModelsbP()->push_back(addModelI(miTmp));
+    */
 
     ModelN m = addModelI(*eng.getPlayer()->getModelInfo());
     eng.getPlayer()->setModelN(m);
@@ -149,19 +150,28 @@ void Renderer::cleanup() {
     cleanupSwapChain();
 
     vkDestroySampler(device, textureSampler, nullptr);
+    for (Texture texture : eng.getTextures()) {
+        vkDestroyImageView(device, texture.textureImageView, nullptr);
+        vkDestroyImage(device, texture.textureImage, nullptr);
+        vkFreeMemory(device, texture.textureImageMemory, nullptr);
+    }
+    for (TrianglesData td : eng.getTrianglesDatas()) {
+        vkDestroyBuffer(device, td.vertexBuffer, nullptr);
+        vkFreeMemory(device, td.vertexBufferMemory, nullptr);
+    }
 
     for (ModelN j : eng.getModels()) {
-        vkDestroyImageView(device, j.textureImageView, nullptr);
-        vkDestroyImage(device, j.textureImage, nullptr);
-        vkFreeMemory(device, j.textureImageMemory, nullptr);
-        vkDestroyBuffer(device, j.vertexBuffer, nullptr);
-        vkFreeMemory(device, j.vertexBufferMemory, nullptr);
+        //vkDestroyImageView(device, j.texture->textureImageView, nullptr);
+        //vkDestroyImage(device, j.texture->textureImage, nullptr);
+        //vkFreeMemory(device, j.texture->textureImageMemory, nullptr);
+        //vkDestroyBuffer(device, j.vertexBuffer, nullptr);
+        //vkFreeMemory(device, j.vertexBufferMemory, nullptr);
     }
-    vkDestroyImageView(device, eng.getPlayer()->getModelN()->textureImageView, nullptr);
-    vkDestroyImage(device, eng.getPlayer()->getModelN()->textureImage, nullptr);
-    vkFreeMemory(device, eng.getPlayer()->getModelN()->textureImageMemory, nullptr);
-    vkDestroyBuffer(device, eng.getPlayer()->getModelN()->vertexBuffer, nullptr);
-    vkFreeMemory(device, eng.getPlayer()->getModelN()->vertexBufferMemory, nullptr);
+    //vkDestroyImageView(device, eng.getPlayer()->getModelN()->texture->textureImageView, nullptr);
+    //vkDestroyImage(device, eng.getPlayer()->getModelN()->texture->textureImage, nullptr);
+    //vkFreeMemory(device, eng.getPlayer()->getModelN()->texture->textureImageMemory, nullptr);
+    //vkDestroyBuffer(device, eng.getPlayer()->getModelN()->vertexBuffer, nullptr);
+    //vkFreeMemory(device, eng.getPlayer()->getModelN()->vertexBufferMemory, nullptr);
     for (Character& c : eng.getTextClass()->getCharacters()) {
         vkDestroyImage(device, c.txtData.textureImage, nullptr);
         vkDestroyImageView(device, c.txtData.textureImageView, nullptr);        
@@ -230,12 +240,13 @@ void Renderer::recreateSwapChain() {
     createTextGraphicsPipeline();
     createDepthResources();
     createFramebuffers();
+    
 
     for (uint32_t i = 0; i < eng.getModels().size(); i++) {
         ModelN* n = &eng.getModelsP()->at(i);
         createUniformBuffers(n->uniformBuffers, n->uniformBuffersMemory);
         createDescriptorPool(n->descriptorPool);
-        createDescriptorSets(n->descriptorPool, n->descriptorSets, n->uniformBuffers, n->textureImageView);
+        createDescriptorSets(n->descriptorPool, n->descriptorSets, n->uniformBuffers, eng.getTexturesP()->at(n->texture).textureImageView);
         for (int i = 0; i < n->uniformBuffers.size(); i++) {
             updateUniformBuffer(i, n);
         }
@@ -243,7 +254,7 @@ void Renderer::recreateSwapChain() {
     ModelN* n = eng.getPlayer()->getModelN();
     createUniformBuffers(n->uniformBuffers, n->uniformBuffersMemory);
     createDescriptorPool(n->descriptorPool);
-    createDescriptorSets(n->descriptorPool, n->descriptorSets, n->uniformBuffers, n->textureImageView);
+    createDescriptorSets(n->descriptorPool, n->descriptorSets, n->uniformBuffers, eng.getTexturesP()->at(n->texture).textureImageView);
     for (int i = 0; i < n->uniformBuffers.size(); i++) {
         updateUniformBufferPlayer(i, n);
     }
@@ -313,7 +324,7 @@ void Renderer::createSyncObjects() {
 }
 
 void Renderer::drawFrame(int8_t whichPool) {
-    mtx.lock();
+    
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
@@ -364,6 +375,7 @@ void Renderer::drawFrame(int8_t whichPool) {
     submitInfo.pSignalSemaphores = signalSemaphores;
 
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
+    mtxSh.lock();
     if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
@@ -380,7 +392,7 @@ void Renderer::drawFrame(int8_t whichPool) {
     presentInfo.pImageIndices = &imageIndex;
 
     result = vkQueuePresentKHR(presentQueue, &presentInfo);
-
+    mtxSh.unlock();
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
         framebufferResized = false;
         recreateSwapChain();
@@ -390,33 +402,75 @@ void Renderer::drawFrame(int8_t whichPool) {
     }    
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-    mtx.unlock();
+    
+}
+
+void Renderer::deleteWords(){
+    
+    for (int16_t i = eng.getTextClass()->getWordsTD().size()-1; i >= 0; i--) {
+        Word* w = &eng.getTextClass()->getWordsTDP()->at(i);
+        if (w->added == true) {
+            w->added = false;
+        }
+        else {
+            for (int16_t i = 0; i < w->characters.size(); i++) {
+                Character c = w->characters.at(i);
+                if (c.txtData.size > 0) {
+                    if (c.uniformBuffers.size() > 0) {
+                        for (size_t j = 0; j < swapChainImages.size(); j++) {
+                            vkDestroyBuffer(device, c.uniformBuffers[j], nullptr);
+                            vkFreeMemory(device, c.uniformBuffersMemory[j], nullptr);  
+                        }                     
+                    }
+                    vkDestroyDescriptorPool(device, c.descriptorPool, nullptr);
+                    vkDestroyImage(device, c.txtData.textureImage, nullptr);
+                    vkDestroyImageView(device, c.txtData.textureImageView, nullptr);
+                    vkFreeMemory(device, c.txtData.textureImageMemory, nullptr);
+                    vkDestroyBuffer(device, c.vertexBuffer, nullptr);
+                    vkFreeMemory(device, c.vertexBufferMemory, nullptr);
+                }
+            }
+            eng.getTextClass()->getWordsTDP()->erase(eng.getTextClass()->getWordsTDP()->begin() + i);
+        }
+    }
+}
+
+void Renderer::addWords() {
+    for (int16_t i = 0; i < eng.getTextClass()->getWords().size(); i++) {
+        Word* w = &eng.getTextClass()->getWordsP()->at(i);
+        if (w->added == false) {
+            addWord(w);
+            toRecreateBufers = true;
+        }
+    }
 }
 
 void Renderer::addWord(Word* w) {
-    float offset = w->posX / 100000.0f;
+    float offset = w->posX / 1000.0f;
     for (int16_t i = 0; i < w->characters.size(); i++) {
         Character* c = &w->characters.at(i);
         c->posX += offset;
+        c->posY += w->posY / 1000.0f;
         c->posY -= (c->txtData.texHeight - c->Bearing.y) / (200000.0f);
         if (c->txtData.size > 0) {
-            addLetter(c, w->fontSize);
+            addLetter(c, w->fontSize, w->color);
         }
         offset += c->Advance / 11000000.0f;
     }
+    w->added = true;
 }
 
 void Renderer::addLetters() {
+    eng.getTextClass()->loadCharacters();
     for (int16_t i = 0; i < eng.getTextClass()->getCharactersP()->size(); i++) {
         Character* c = &eng.getTextClass()->getCharactersP()->at(i);
         if (c->txtData.size > 0) {
-            addLetter(c, 20);
+            addLetter(c, 20, eng.getCurrentColor());
         }
     }
 }
 
-void Renderer::addLetter(Character* c, float fontSize) {
-    //std::cout << "Dane: " << (float)((float)c->txtData.texWidth/30) << "x" << (float)((float)c->txtData.texHeight/30) << std::endl;
+void Renderer::addLetter(Character* c, float fontSize, glm::vec4 color) {
     createTextureImageLetter(c);
     c->txtData.textureImageView = createTextureImageView(c->txtData.textureImage);
     c->vertices.clear();
@@ -424,18 +478,20 @@ void Renderer::addLetter(Character* c, float fontSize) {
     float size = (float)(200000.0f);
     float height = 9.8f;
 
-    c->vertices.push_back({ { 0.0f, 0.0f, height}, eng.getCurrentColor() , { 0.0f, 1.0f } });
-    c->vertices.push_back({ { (float)((float)c->txtData.texWidth / size), 0.0f, height}, eng.getCurrentColor() , { 1.0f, 1.0f } });
-    c->vertices.push_back({ { (float)((float)c->txtData.texWidth / size), (float)((float)c->txtData.texHeight / size), height}, eng.getCurrentColor() , { 1.0f, 0.0f } });
-    c->vertices.push_back({ { (float)((float)c->txtData.texWidth / size), (float)((float)c->txtData.texHeight / size), height}, eng.getCurrentColor() , { 1.0f, 0.0f } });
-    c->vertices.push_back({ { 0.0f, (float)((float)c->txtData.texHeight / size), height}, eng.getCurrentColor() , { 0.0f, 0.0f } });
-    c->vertices.push_back({ { 0.0f, 0.0f, height}, eng.getCurrentColor() , { 0.0f, 1.0f } });
+    c->vertices.push_back({ { 0.0f, 0.0f, height}, color, { 0.0f, 1.0f } });
+    c->vertices.push_back({ { (float)((float)c->txtData.texWidth / size), 0.0f, height}, color, { 1.0f, 1.0f } });
+    c->vertices.push_back({ { (float)((float)c->txtData.texWidth / size), (float)((float)c->txtData.texHeight / size), height}, color, { 1.0f, 0.0f } });
+    c->vertices.push_back({ { (float)((float)c->txtData.texWidth / size), (float)((float)c->txtData.texHeight / size), height}, color, { 1.0f, 0.0f } });
+    c->vertices.push_back({ { 0.0f, (float)((float)c->txtData.texHeight / size), height}, color, { 0.0f, 0.0f } });
+    c->vertices.push_back({ { 0.0f, 0.0f, height}, color, { 0.0f, 1.0f } });
 
     createVertexBuffer(c->vertices, c->vertexBuffer, c->vertexBufferMemory);
     createUniformBuffers(c->uniformBuffers, c->uniformBuffersMemory);
     createDescriptorPool(c->descriptorPool);
     createDescriptorSets(c->descriptorPool, c->descriptorSets, c->uniformBuffers, c->txtData.textureImageView);
-    updateUniformBufferCharacter(0, c);
+    for (int i = 0; i < c->uniformBuffers.size(); i++) {
+        updateUniformBufferCharacter(i, c);
+    }
 }
 
 ModelN Renderer::addModelI(ModelInfo mi) {
@@ -446,18 +502,25 @@ ModelN Renderer::addModelI(ModelInfo mi) {
     m.xx = mi.xx;
     m.yy = mi.yy;
     m.zz = mi.zz;
+    m.scale = mi.scale;
       
     mmm->translateModel(&m.mPos, mi.x, mi.y, mi.z);
     mmm->rotateModel(&m.mRot, mi.xR, mi.yR, mi.zR);
 
     createTextureImage(mi.texturePath, &m);
-    m.textureImageView = createTextureImageView(m.textureImage);
+    if (eng.getTextures().at(m.texture).usedCount <= 1) {
+        eng.getTexturesP()->at(m.texture).textureImageView = createTextureImageView(eng.getTexturesP()->at(m.texture).textureImage);
+    }   
 
     loadModel(mi.modelPath, &m);
-    createVertexBuffer(vertices, m.vertexBuffer, m.vertexBufferMemory);
+    if (eng.getTrianglesDatas().at(m.trianglesData).usedCount <= 1) {
+        createVertexBuffer(vertices, eng.getTrianglesDatasP()->at(m.trianglesData).vertexBuffer, eng.getTrianglesDatasP()->at(m.trianglesData).vertexBufferMemory);
+        std::cout << "vertexBuffer: " << eng.getTrianglesDatas().at(m.trianglesData).vertexBuffer << std::endl;
+    }
+    
     createUniformBuffers(m.uniformBuffers, m.uniformBuffersMemory);
     createDescriptorPool(m.descriptorPool);
-    createDescriptorSets(m.descriptorPool, m.descriptorSets, m.uniformBuffers, m.textureImageView);
+    createDescriptorSets(m.descriptorPool, m.descriptorSets, m.uniformBuffers, eng.getTexturesP()->at(m.texture).textureImageView);
     for (int i = 0; i < m.uniformBuffers.size(); i++) {
         updateUniformBuffer(i, &m);
     }
@@ -485,13 +548,14 @@ void Renderer::deleteModelM(ModelN* t) {
 }
 
 void Renderer::addModels() {
-        int32_t j = eng.getMultiModelManagerP()->getModelsToAddSize();
-            for (int32_t i = 0; i < j; i++) {
-                eng.getModelsbP()->push_back( addModelI(eng.getMultiModelManagerP()->getFirstModelInfo()) );
-            }
-        toJoin = true;
-        modelsAdding = false;
-        eng.getMultiModelManagerP()->clearModelsToAdd();
+    int32_t j = eng.getMultiModelManagerP()->getModelsToAddSize();
+    for (int32_t i = 0; i < j; i++) {
+        eng.getModelsbP()->push_back( addModelI(eng.getMultiModelManagerP()->getFirstModelInfo()) );
+    }
+    toJoin = true;
+    //eng.getMultiModelManagerP()->clearModelsToAdd();
+    //eng.getMultiModelManagerP()->clearModelsToAddSize(j-1);
+    eng.setModelsAdding(false);
 }
 
  VKAPI_ATTR VkBool32 VKAPI_CALL Renderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {

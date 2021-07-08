@@ -44,6 +44,6 @@ public:
 	float camTiltAngle = 0.0f;
 
 private:
-	glm::vec3 basicCam = glm::vec3(0.0001, 16.0, 0.0);
+	glm::vec3 basicCam = glm::vec3(0.0001, 42.0, 0.0);
 
 };

@@ -54,13 +54,16 @@ struct Word {
     float fontSize;
     char align = 'L'; // L, C, R
     float posX = 0.0f, posY = 0.0f;
-    int r = 0, g = 0, b = 0;
+    glm::vec4 color;
     std::vector<Character> characters;
+    std::string word = "";
+    bool added = false;
 };
 
 class TextClass
 {
 public:
+    TextClass();
 	void loadCharacters();
     Character loadCharacter(int ascii);
 
@@ -68,8 +71,13 @@ public:
     std::vector<Character>* getCharactersP();
     std::vector<Word> getWords();
     std::vector<Word>* getWordsP();
+    std::vector<Word> getWordsTD();
+    std::vector<Word>* getWordsTDP();
 
-    void addWord(std::string word, float fontSize, float x, float y, char align);
+    void deleteWord(std::string word);
+    void deleteWordContain(std::string word);
+    void clearWords();
+    Word* addWord(std::string word, float fontSize, float x, float y, char align, glm::vec4 color);
 
 private:
 	FT_Library ft;
@@ -78,5 +86,6 @@ private:
 
     std::vector<Character> Characters;
     std::vector<Word> words;
+    std::vector<Word> wordsToDelete;
 };
 

@@ -11,6 +11,7 @@ Keyboard* Keyboard::getInstance()
 }
 
 void Keyboard::addKey(int key){
+	//std::cout << "Pressed key: " << key << std::endl;
 	int8_t i = 0;
 	bool tmp = false;
 	for (auto& k : keys) {

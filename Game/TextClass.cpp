@@ -1,8 +1,24 @@
 #include "TextClass.h"
 
-void TextClass::loadCharacters(){
+TextClass::TextClass(){
     bool error = false;
-        
+    if (FT_Init_FreeType(&ft)) {
+        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+        error = true;
+    }
+    if (FT_New_Face(ft, "files/fonts/arial.ttf", 0, &face)) {
+        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+        error = true;
+    }
+    FT_Set_Pixel_Sizes(face, 0, 10);
+    glyphSlot = face->glyph;
+    if (error == false) {
+        std::cout << "TextClass - OK" << std::endl;
+    }
+}
+
+void TextClass::loadCharacters(){
+    bool error = false;        
     if (FT_Init_FreeType(&ft)) {
         std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
         error = true;
@@ -123,7 +139,44 @@ std::vector<Word>* TextClass::getWordsP(){
     return &words;
 }
 
-void TextClass::addWord(std::string wordT, float fontSize, float x, float y, char align){
+std::vector<Word> TextClass::getWordsTD(){
+    return wordsToDelete;
+}
+
+std::vector<Word>* TextClass::getWordsTDP(){
+    return &wordsToDelete;
+}
+
+void TextClass::deleteWord(std::string word){
+    int16_t i = 0;
+    for (Word& w : words) {
+        if (w.word == word) {
+            wordsToDelete.push_back(w);
+            words.erase(words.begin() + i);
+            break;
+        }
+        i++;
+    }
+}
+
+void TextClass::deleteWordContain(std::string word){
+    int16_t i = 0;
+    for (Word& w : words) {
+        if (w.word.find(word) != std::string::npos) {
+            wordsToDelete.push_back(w);
+            words.erase(words.begin() + i);
+            break;
+        }
+        i++;
+    }
+}
+
+void TextClass::clearWords(){
+    wordsToDelete.insert(wordsToDelete.end(), words.begin(), words.end());
+    words.clear();
+}
+
+Word* TextClass::addWord(std::string wordT, float fontSize, float x, float y, char align, glm::vec4 color){
     FT_Set_Pixel_Sizes(face, 0, fontSize);
     const int length = wordT.length();
     char wchars[100];
@@ -134,6 +187,9 @@ void TextClass::addWord(std::string wordT, float fontSize, float x, float y, cha
     word.posY = y;
     word.align = align;
     word.fontSize = fontSize;
+    word.color = color;
+    word.added = false;
+    word.word = wordT;
 
     int8_t i = 0;
     float offset = x;
@@ -143,4 +199,5 @@ void TextClass::addWord(std::string wordT, float fontSize, float x, float y, cha
     }
 
     words.push_back(word);
+    return &words.back();
 }
